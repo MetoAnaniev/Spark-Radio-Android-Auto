@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore & secrets — DO NOT commit real signing material
+*.jks
+*.keystore
+keystore.properties
+
+# Local SDK path (machine specific)
+local.properties
+
+# Logs
+*.log

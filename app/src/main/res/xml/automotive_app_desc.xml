@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tells Android Auto / Google Automotive that this is a MEDIA app.
+  Using <uses name="media"/> enables the media browse + playback templates
+  (no custom UI needed on the car screen).
+-->
+<automotiveApp>
+    <uses name="media" />
+</automotiveApp>

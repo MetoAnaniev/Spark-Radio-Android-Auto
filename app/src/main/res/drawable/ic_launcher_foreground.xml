@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Radio waves + play glyph, centered within the safe zone -->
+    <group
+        android:scaleX="0.55"
+        android:scaleY="0.55"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:fillColor="#4CC2FF"
+            android:pathData="M54,38 L84,56 L54,74 Z" />
+    </group>
+    <path
+        android:strokeColor="#4CC2FF"
+        android:strokeWidth="3.5"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:pathData="M32,40 C24,46 24,62 32,68" />
+    <path
+        android:strokeColor="#4CC2FF"
+        android:strokeWidth="3.5"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:pathData="M76,40 C84,46 84,62 76,68" />
+</vector>

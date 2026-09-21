@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RadioSpark</string>
+
+    <!-- Navigation -->
+    <string name="nav_now_playing">Now Playing</string>
+    <string name="nav_stations">Stations</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Playback -->
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_buffering">Buffering…</string>
+    <string name="status_playing">Playing</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_error">Playback error</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next station</string>
+    <string name="previous">Previous station</string>
+    <string name="add_favorite">Add to favorites</string>
+    <string name="remove_favorite">Remove from favorites</string>
+
+    <!-- Stations -->
+    <string name="stations_title">Stations</string>
+    <string name="search_stations">Search stations</string>
+
+    <!-- Explore -->
+    <string name="explore_title">Explore by Genre</string>
+    <string name="play_first">Play first</string>
+
+    <!-- Favorites -->
+    <string name="favorites_title">Favorites</string>
+    <string name="favorites_empty">No favorites yet. Tap the heart on any station.</string>
+
+    <!-- Add / Manage -->
+    <string name="add_station">Add station</string>
+    <string name="edit_station">Edit station</string>
+    <string name="field_name">Station name</string>
+    <string name="field_url">Stream URL (http/https, .m3u/.pls)</string>
+    <string name="field_logo">Logo URL (optional)</string>
+    <string name="field_genre">Genre</string>
+    <string name="field_country">Language / Country</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="setting_dark_theme">Dark theme</string>
+    <string name="setting_dark_theme_desc">Recommended for driving at night</string>
+    <string name="setting_quality">Streaming quality</string>
+    <string name="setting_autostart">Auto-start last station on Android Auto</string>
+    <string name="setting_wifi_only">Stream on Wi-Fi only</string>
+
+    <!-- Errors -->
+    <string name="error_invalid_url">Please enter a valid http(s) URL</string>
+    <string name="error_unreachable">Could not reach this stream URL</string>
+    <string name="error_name_required">Station name is required</string>
+</resources>
