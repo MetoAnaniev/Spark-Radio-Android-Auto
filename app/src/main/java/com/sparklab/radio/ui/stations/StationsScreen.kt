@@ -48,8 +48,12 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
         else all.filter {
             it.name.contains(query, true) ||
                 it.genre.label.contains(query, true) ||
-                it.description.contains(query, true)
+                it.description.contains(query, true) ||
+                it.country.orEmpty().contains(query, true)
         }
+    }
+    val groupedByCountry = remember(filtered) {
+        filtered.groupBy { it.country?.takeIf(String::isNotBlank) ?: "International" }
     }
 
     Scaffold(
@@ -72,10 +76,16 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
                 .padding(horizontal = 16.dp),
         ) {
             Text(
-                "Stations",
+                "Stations by country",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                "${filtered.size} live stations",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
             )
             OutlinedTextField(
                 value = query,
@@ -84,7 +94,7 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
                 shape = MaterialTheme.shapes.medium,
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, null) },
-                placeholder = { Text("Search stations") },
+                placeholder = { Text("Search station, genre or country") },
             )
             Spacer(Modifier.height(12.dp))
 
@@ -92,13 +102,25 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
                 contentPadding = PaddingValues(bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(filtered, key = { it.id }) { station ->
-                    StationRow(
-                        station = station,
-                        isPlaying = playing.current?.id == station.id,
-                        onPlay = { vm.play(station, filtered) },
-                        onToggleFavorite = { vm.toggleFavorite(station) },
-                    )
+                groupedByCountry.forEach { (country, stations) ->
+                    item(key = "country_$country") {
+                        Text(
+                            text = "$country · ${stations.size}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    items(stations, key = { it.id }) { station ->
+                        StationRow(
+                            station = station,
+                            isPlaying = playing.current?.id == station.id,
+                            onPlay = { vm.play(station, filtered) },
+                            onToggleFavorite = { vm.toggleFavorite(station) },
+                        )
+                    }
                 }
             }
         }

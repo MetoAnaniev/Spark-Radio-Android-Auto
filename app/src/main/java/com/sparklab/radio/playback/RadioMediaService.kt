@@ -47,11 +47,13 @@ import okhttp3.OkHttpClient
  *      ROOT
  *       ├── Favorites
  *       ├── All Stations
- *       ├── My Stations            (user added)
- *       └── Genres
- *             ├── Pop
- *             ├── Rock
- *             ├── …  (each contains its stations)
+     *       ├── My Stations            (user added)
+     *       ├── Countries
+     *       │     ├── Bulgaria
+     *       │     └── …  (alphabetical after Bulgaria)
+     *       └── Genres
+     *             ├── Pop
+     *             └── …  (each contains its stations)
  *
  *  Playback from the car uses the same ExoPlayer queue that powers the phone,
  *  so next/previous skip between stations on BOTH surfaces.
@@ -142,6 +144,13 @@ class RadioMediaService : MediaLibraryService() {
                     parentId == ID_FAVORITES -> repo.getAllOnce().filter { it.isFavorite }.map { it.toBrowsableMediaItem() }
                     parentId == ID_ALL -> repo.getAllOnce().map { it.toBrowsableMediaItem() }
                     parentId == ID_MY -> repo.getAllOnce().filter { it.isUserEditable }.map { it.toBrowsableMediaItem() }
+                    parentId == ID_COUNTRIES -> countries()
+                    parentId.startsWith(PREFIX_COUNTRY) -> {
+                        val country = parentId.removePrefix(PREFIX_COUNTRY)
+                        repo.getAllOnce()
+                            .filter { (it.country ?: "International").equals(country, ignoreCase = true) }
+                            .map { it.toBrowsableMediaItem() }
+                    }
                     parentId == ID_GENRES -> genres()
                     parentId.startsWith(PREFIX_GENRE) -> {
                         val genre = Genre.fromKey(parentId.removePrefix(PREFIX_GENRE))
@@ -209,8 +218,14 @@ class RadioMediaService : MediaLibraryService() {
         category(ID_FAVORITES, getString(R.string.favorites_title)),
         category(ID_ALL, getString(R.string.stations_title)),
         category(ID_MY, "My Stations"),
+        category(ID_COUNTRIES, "Countries"),
         category(ID_GENRES, getString(R.string.explore_title)),
     )
+
+    private suspend fun countries(): List<MediaItem> = repo.getAllOnce()
+        .map { it.country ?: "International" }
+        .distinct()
+        .map { country -> category(PREFIX_COUNTRY + country, country) }
 
     private fun genres(): List<MediaItem> = Genre.entries.map { genre ->
         category(PREFIX_GENRE + genre.key, genre.label)
@@ -241,7 +256,9 @@ class RadioMediaService : MediaLibraryService() {
         const val ID_FAVORITES = "favorites"
         const val ID_ALL = "all_stations"
         const val ID_MY = "my_stations"
+        const val ID_COUNTRIES = "countries"
         const val ID_GENRES = "genres"
+        const val PREFIX_COUNTRY = "country_"
         const val PREFIX_GENRE = "genre_"
 
         /** Custom command used by the phone UI to set a play queue. */

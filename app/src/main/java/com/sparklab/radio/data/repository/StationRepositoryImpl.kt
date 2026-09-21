@@ -10,7 +10,9 @@ import com.sparklab.radio.domain.model.Station
 import com.sparklab.radio.domain.repository.StationRepository
 import com.sparklab.radio.domain.repository.StationSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -48,14 +50,14 @@ class UserStationSource(private val db: RadioDatabase) : StationSource {
 }
 
 /* ============================================================================
- * SOURCE 3 — Remote REST API  (mock now, real later)
- * ----------------------------------------------------------------------------
- * Swap `RemoteStationApi.Mock` for `RemoteStationApi.Http("https://api...")`
- * in the DI container to go live. No other code changes are required.
+ * SOURCE 3 — Live Radio Browser public API with an offline-safe empty state.
  * ========================================================================== */
 class RemoteStationSource(private val api: RemoteStationApi) : StationSource {
     override fun observeStations(): Flow<List<Station>> =
-        flowOf(emptyList()) // remote is fetched on demand
+        flow {
+            emit(emptyList())
+            emit(api.getStations())
+        }.catch { emit(emptyList()) }
 
     override suspend fun getStations(): List<Station> = api.getStations()
 }
@@ -75,9 +77,10 @@ class StationRepositoryImpl(
         combine(
             staticSource.observeStations(),
             userSource.observeStations(),
+            remoteSource.observeStations(),
             db.favoriteDao().observeAll(),
-        ) { static, user, favorites ->
-            merge(static + user, favorites)
+        ) { static, user, remote, favorites ->
+            merge(user + remote + static, favorites)
         }
 
     override fun observeByGenre(genre: Genre): Flow<List<Station>> =
@@ -104,19 +107,31 @@ class StationRepositoryImpl(
         val user = userSource.getStations()
         val remote = runCatching { remoteSource.getStations() }.getOrDefault(emptyList())
         val favorites = db.favoriteDao().getAllOnce()
-        return merge(static + user + remote, favorites)
+        return merge(user + remote + static, favorites)
     }
 
     private fun merge(stations: List<Station>, favorites: List<FavoriteEntity>): List<Station> {
         val byId = favorites.associateBy { it.stationId }
-        return stations.map { s ->
-            val fav = byId[s.id]
-            s.copy(
-                isFavorite = fav?.isFavorite == true,
-                lastPlayedAt = fav?.lastPlayedAt ?: 0L,
-                sortOrder = fav?.sortOrder ?: 0,
+        return stations
+            .distinctBy { "${it.country.orEmpty().trim().lowercase()}|${it.name.trim().lowercase()}" }
+            .map { station ->
+                val favorite = byId[station.id]
+                station.copy(
+                    isFavorite = favorite?.isFavorite == true,
+                    lastPlayedAt = favorite?.lastPlayedAt ?: 0L,
+                    sortOrder = favorite?.sortOrder ?: 0,
+                )
+            }
+            .sortedWith(
+                compareBy<Station> { countrySortKey(it.country) }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
             )
-        }
+    }
+
+    private fun countrySortKey(country: String?): String = when {
+        country.equals("Bulgaria", ignoreCase = true) -> "0_bulgaria"
+        country.isNullOrBlank() || country.equals("International", ignoreCase = true) -> "2_international"
+        else -> "1_${country.lowercase()}"
     }
 
     override suspend fun upsertUserStation(station: Station): String {

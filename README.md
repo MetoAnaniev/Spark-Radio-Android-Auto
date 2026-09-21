@@ -12,14 +12,14 @@ look: rounded cards, large readable type, high-contrast dark theme by default.
 | Area | What you get |
 |------|--------------|
 | **Now Playing** | Big artwork, bold station name, genre, description, large play/pause, next/previous, favorite toggle, buffering indicator + connection status (`Connecting… / Playing / Paused / Offline`) |
-| **Stations** | Scrollable card list of all stations (built-in + user + remote) with search |
+| **Stations** | Live Bulgarian + international directory, grouped by country with station/genre/country search |
 | **Explore** | Genre grid → filtered station list, with **Play first** quick action |
 | **Favorites** | Heart any station from any list or Now Playing; persisted and ordered by last played |
 | **Add / Manage** | Form to add custom stations (name, stream URL, logo, genre, country) with URL validation; edit & delete |
 | **Settings** | Dark/light theme, streaming quality (Low/Medium/High), auto-start last station on Android Auto, Wi-Fi-only streaming |
 | **Android Auto** | `MediaLibraryService` browse tree (Favorites / All / My Stations / Genres), metadata, car playback controls |
 | **Persistence** | Room database (user stations + favorites) and SharedPreferences (settings) |
-| **API-ready** | `RemoteStationApi` interface with a `Mock` (offline) and a real `Http` implementation |
+| **Live directory** | Free, keyless Radio Browser API with mirror failover, 15-minute cache, and verified Radio Nova fallback |
 
 ---
 
@@ -34,7 +34,7 @@ domain/         ← pure Kotlin: models, repository INTERFACES, use-cases
   usecase/      GetStationsByGenre, ValidateStreamUrl, ToggleFavorite
 data/           ← implementations
   local/        Room: RadioDatabase, DAOs, entities (UserStation, Favorite)
-  remote/       DefaultStations (in-code catalog) + RemoteStationApi (Mock | Http)
+  remote/       Verified fallback catalog + Radio Browser public API client
   repository/   StaticStationSource + UserStationSource + RemoteStationSource + StationRepositoryImpl
   playback/     MediaControllerPlaybackRepository (UI ⇄ MediaSession bridge)
   settings/     SettingsRepositoryImpl (SharedPreferences)
@@ -61,6 +61,8 @@ Implemented in `playback/RadioMediaService.kt`:
    ├── Favorites
    ├── All Stations
    ├── My Stations
+   ├── Countries
+   │     ├── Bulgaria … International
    └── Genres
          ├── Pop … Kids   (each lists its stations)
   ```
@@ -140,30 +142,13 @@ up automatically in the Explore grid and car browse tree.
 
 ---
 
-## 🔌 Connect a real REST API later
+## 🔌 Live station directory
 
-The only file you touch is the DI container.
+The app uses the free, open-source [Radio Browser API](https://api.radio-browser.info/) without an API key. It loads up to 100 Bulgarian stations and 200 popular international stations, removes duplicates, and sorts Bulgaria first followed by countries and station names alphabetically. Two API mirrors are tried automatically and successful results are cached for 15 minutes.
 
-```kotlin
-// di/AppContainer.kt
-remoteSource = RemoteStationSource(
-    RemoteStationApi.Http("https://api.your-service.com")  // ← replace Mock()
-)
-```
+`DefaultStations.kt` contains a verified Radio Nova high-quality AAC stream, so the app still has a working Bulgarian station when the directory is temporarily unavailable.
 
-Expected endpoints (contract in `data/remote/RemoteStationApi.kt`):
-
-```
-GET  /stations              → [ { id, name, streamUrl, genre, description, logoUrl, country } ]
-GET  /stations?genre=jazz   → filtered list
-POST /stations              → create a station (JSON body)
-```
-
-Swap OkHttp for Retrofit/Ktor inside `RemoteStationApi.Http` if you prefer — the rest of the
-app depends only on the `RemoteStationApi` **interface**, so nothing else changes.
-
-You can also implement a **custom source** (e.g. a podcast directory) by implementing
-`StationSource` and adding it to `StationRepositoryImpl`.
+You can implement another source by implementing `RemoteStationApi` or `StationSource` and wiring it in `AppContainer`.
 
 ---
 

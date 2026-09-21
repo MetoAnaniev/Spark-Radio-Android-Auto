@@ -18,11 +18,7 @@ import com.sparklab.radio.domain.usecase.ToggleFavorite
 /**
  * Tiny hand-rolled DI container (no Hilt needed for an app this size).
  * Everything is a lazy singleton created from the Application context.
- *
- * ── To connect a real API ──────────────────────────────────────────────
- * Replace `RemoteStationApi.Mock()` below with:
- *     RemoteStationApi.Http("https://your.api.example.com")
- * and the whole app (UI + Android Auto) starts consuming remote stations.
+ * The live catalog is supplied by the free, keyless Radio Browser API.
  */
 class AppContainer(context: Context) {
 
@@ -33,7 +29,7 @@ class AppContainer(context: Context) {
         StationRepositoryImpl(
             staticSource = StaticStationSource(),
             userSource = UserStationSource(db),
-            remoteSource = RemoteStationSource(RemoteStationApi.Mock()),
+            remoteSource = RemoteStationSource(RemoteStationApi.RadioBrowser()),
             db = db,
         )
     }
