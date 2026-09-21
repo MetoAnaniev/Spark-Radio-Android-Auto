@@ -1,6 +1,8 @@
 package com.sparklab.radio.playback
 
 import android.content.Intent
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -73,12 +75,20 @@ class RadioMediaService : MediaLibraryService() {
         super.onCreate()
 
         // A dedicated OkHttp client keeps connections alive & handles ICY radio.
-        val httpDataSourceFactory = OkHttpDataSource.Factory(OkHttpClient.Builder().build())
+        val httpDataSourceFactory = OkHttpDataSource.Factory(
+            OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build(),
+        ).setUserAgent("RadioSpark/1.2 Android Auto")
+            .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(this).setDataSourceFactory(httpDataSourceFactory),
             )
+            .setAudioAttributes(AudioAttributes.DEFAULT, true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true) // pause on headphone unplug
             .build()
 
@@ -180,16 +190,32 @@ class RadioMediaService : MediaLibraryService() {
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: List<MediaItem>,
-        ): ListenableFuture<List<MediaItem>> {
-            // Android Auto sends us MediaItems with only a mediaId; resolve them
-            // back into fully playable items (with stream URLs) from the repository.
-            return scope.guavaFuture {
-                mediaItems.map { item ->
-                    val station = repo.getStation(item.mediaId)
-                    station?.toMediaItem() ?: item
-                }
-            }
+        ): ListenableFuture<List<MediaItem>> = scope.guavaFuture {
+            resolvePlayableItems(mediaItems)
         }
+
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = scope.guavaFuture {
+            // Car hosts commonly submit browse results containing only mediaId.
+            // Resolve every item to a stream URI before Media3 prepares playback.
+            val playableItems = resolvePlayableItems(mediaItems)
+            MediaSession.MediaItemsWithStartPosition(
+                playableItems,
+                startIndex.coerceIn(0, (playableItems.size - 1).coerceAtLeast(0)),
+                startPositionMs.coerceAtLeast(0L),
+            )
+        }
+
+        private suspend fun resolvePlayableItems(mediaItems: List<MediaItem>): List<MediaItem> =
+            mediaItems.mapNotNull { item ->
+                repo.getStation(item.mediaId)?.toMediaItem()
+                    ?: item.takeIf { it.localConfiguration?.uri != null }
+            }
 
         override fun onCustomCommand(
             session: MediaSession,

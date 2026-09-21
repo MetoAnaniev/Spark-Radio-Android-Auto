@@ -16,10 +16,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,6 +113,17 @@ fun StationRow(
                 )
             }
 
+            FilledIconButton(
+                onClick = onPlay,
+                modifier = Modifier.size(52.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play ${station.name}",
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+            Spacer(Modifier.width(6.dp))
             IconButton(onClick = onToggleFavorite, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = if (station.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
