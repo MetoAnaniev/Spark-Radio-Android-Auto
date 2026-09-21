@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -58,6 +59,7 @@ import okhttp3.OkHttpClient
  *  Playback from the car uses the same ExoPlayer queue that powers the phone,
  *  so next/previous skip between stations on BOTH surfaces.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class RadioMediaService : MediaLibraryService() {
 
     private lateinit var player: ExoPlayer

@@ -1,5 +1,6 @@
 package com.sparklab.radio.ui.explore
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,10 +32,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.sparklab.radio.domain.model.Genre
 import com.sparklab.radio.ui.components.StationRow
@@ -42,13 +48,17 @@ import com.sparklab.radio.ui.viewmodel.RadioViewModel
 
 /** Explore — a grid of genre tiles. Tapping opens the filtered stations list. */
 @Composable
-fun ExploreScreen(vm: RadioViewModel, onGenre: (Genre) -> Unit) {
+fun ExploreScreen(
+    vm: RadioViewModel,
+    onGenre: (Genre) -> Unit,
+    isTelevision: Boolean = false,
+) {
     val byGenre by vm.stationsByGenre.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = if (isTelevision) 48.dp else 16.dp),
     ) {
         Text(
             "Explore by Genre",
@@ -57,8 +67,8 @@ fun ExploreScreen(vm: RadioViewModel, onGenre: (Genre) -> Unit) {
             modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
         )
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            columns = GridCells.Fixed(if (isTelevision) 4 else 2),
+            contentPadding = PaddingValues(bottom = if (isTelevision) 32.dp else 96.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -67,6 +77,7 @@ fun ExploreScreen(vm: RadioViewModel, onGenre: (Genre) -> Unit) {
                     genre = genre,
                     count = byGenre[genre]?.size ?: 0,
                     onClick = { onGenre(genre) },
+                    isTelevision = isTelevision,
                 )
             }
         }
@@ -74,12 +85,33 @@ fun ExploreScreen(vm: RadioViewModel, onGenre: (Genre) -> Unit) {
 }
 
 @Composable
-private fun GenreTile(genre: Genre, count: Int, onClick: () -> Unit) {
+private fun GenreTile(
+    genre: Genre,
+    count: Int,
+    onClick: () -> Unit,
+    isTelevision: Boolean,
+) {
+    var isFocused by remember { mutableStateOf(false) }
     Card(
         onClick = onClick,
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.aspectRatio(1.25f),
+        border = if (isFocused) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isFocused) 10.dp else 0.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        modifier = Modifier
+            .aspectRatio(if (isTelevision) 1.55f else 1.25f)
+            .onFocusChanged { isFocused = it.isFocused }
+            .graphicsLayer {
+                val scale = if (isFocused) 1.04f else 1f
+                scaleX = scale
+                scaleY = scale
+            },
     ) {
         Box(
             modifier = Modifier
@@ -116,7 +148,12 @@ private fun GenreTile(genre: Genre, count: Int, onClick: () -> Unit) {
 
 /** Filtered station list for one genre, with a quick "Play first" action. */
 @Composable
-fun GenreStationsScreen(vm: RadioViewModel, genreKey: String?, onBack: () -> Unit) {
+fun GenreStationsScreen(
+    vm: RadioViewModel,
+    genreKey: String?,
+    onBack: () -> Unit,
+    isTelevision: Boolean = false,
+) {
     val genre = Genre.fromKey(genreKey)
     val byGenre by vm.stationsByGenre.collectAsState()
     val playing by vm.playbackState.collectAsState()
@@ -125,7 +162,7 @@ fun GenreStationsScreen(vm: RadioViewModel, genreKey: String?, onBack: () -> Uni
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = if (isTelevision) 48.dp else 16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
             IconButton(onClick = onBack) {
@@ -160,7 +197,7 @@ fun GenreStationsScreen(vm: RadioViewModel, genreKey: String?, onBack: () -> Uni
 
         Spacer(Modifier.height(8.dp))
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(bottom = if (isTelevision) 32.dp else 96.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(stations, key = { it.id }) { station ->

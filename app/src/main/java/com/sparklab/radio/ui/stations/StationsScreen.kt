@@ -38,7 +38,11 @@ import com.sparklab.radio.ui.viewmodel.RadioViewModel
  * Includes a search box and a FAB to add a custom station.
  */
 @Composable
-fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
+fun StationsScreen(
+    vm: RadioViewModel,
+    onAdd: () -> Unit,
+    isTelevision: Boolean = false,
+) {
     val all by vm.allStations.collectAsState()
     val playing by vm.playbackState.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -58,14 +62,16 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
 
     Scaffold(
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAdd,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, null)
-                Spacer(Modifier.padding(horizontal = 4.dp))
-                Text("Add station")
+            if (!isTelevision) {
+                ExtendedFloatingActionButton(
+                    onClick = onAdd,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Filled.Add, null)
+                    Spacer(Modifier.padding(horizontal = 4.dp))
+                    Text("Add station")
+                }
             }
         },
     ) { padding ->
@@ -73,7 +79,7 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = if (isTelevision) 48.dp else 16.dp),
         ) {
             Text(
                 "Stations by country",
@@ -99,7 +105,7 @@ fun StationsScreen(vm: RadioViewModel, onAdd: () -> Unit) {
             Spacer(Modifier.height(12.dp))
 
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 96.dp),
+                contentPadding = PaddingValues(bottom = if (isTelevision) 32.dp else 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 groupedByCountry.forEach { (country, stations) ->

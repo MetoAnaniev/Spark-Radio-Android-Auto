@@ -1,6 +1,6 @@
 # RadioSpark 📻
 
-A native **Android (Kotlin)** online radio streaming app with **full Android Auto support**.
+A native **Android (Kotlin)** online radio streaming app for phones, **Google TV**, and **Android Auto**.
 Built with Jetpack (Compose, Navigation, ViewModel, Room), **Media3 / ExoPlayer**, and a
 clean MVVM + repository architecture. Designed with a **Material 3 / Samsung One UI–inspired**
 look: rounded cards, large readable type, high-contrast dark theme by default.
@@ -17,7 +17,8 @@ look: rounded cards, large readable type, high-contrast dark theme by default.
 | **Favorites** | Heart any station from any list or Now Playing; persisted and ordered by last played |
 | **Add / Manage** | Form to add custom stations (name, stream URL, logo, genre, country) with URL validation; edit & delete |
 | **Settings** | Dark/light theme, streaming quality (Low/Medium/High), auto-start last station on Android Auto, Wi-Fi-only streaming |
-| **Android Auto** | `MediaLibraryService` browse tree (Favorites / All / My Stations / Genres), metadata, car playback controls |
+| **Google TV** | Leanback launcher, TV banner, landscape layout, persistent navigation rail, D-pad focus states, and remote-friendly controls |
+| **Android Auto** | `MediaLibraryService` browse tree (Favorites / All / My Stations / Countries / Genres), metadata, car playback controls |
 | **Persistence** | Room database (user stations + favorites) and SharedPreferences (settings) |
 | **Live directory** | Free, keyless Radio Browser API with mirror failover, 15-minute cache, and verified Radio Nova fallback |
 
@@ -48,6 +49,12 @@ Playback flows through a single **MediaSession** owned by `RadioMediaService`, s
 and Android Auto stay perfectly in sync (same queue, same position).
 
 ---
+
+## Google TV
+
+RadioSpark is available from the Google TV launcher through `LEANBACK_LAUNCHER`. It does not require a touchscreen and automatically switches to a 10-foot interface with a navigation rail, four-column genre browsing, spacious station lists, visible focused-card states, and a landscape two-pane Now Playing screen. The same APK remains compatible with Android phones.
+
+Remote navigation uses the D-pad: move focus with the directional keys and press the center/select button to activate stations and controls. Hardware media play/pause controls are handled by the shared MediaSession.
 
 ## 🚗 Android Auto
 
@@ -89,7 +96,7 @@ Implemented in `playback/RadioMediaService.kt`:
 ## 🚀 Build
 
 ```bash
-# Debug build (fast)
+# Debug build for phone or Google TV (fast)
 ./gradlew :app:assembleDebug
 
 # Signed release APK

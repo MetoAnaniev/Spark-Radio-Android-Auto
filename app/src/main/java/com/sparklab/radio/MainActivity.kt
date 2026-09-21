@@ -1,6 +1,7 @@
 package com.sparklab.radio
 
 import android.Manifest
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,7 +36,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        val isTelevision = resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+        if (!isTelevision) enableEdgeToEdge()
 
         // Bridge to the playback service (MediaSession).
         (getApplication() as RadioApp).container.playbackRepository.let { repo ->
@@ -55,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    RadioAppScaffold(vm)
+                    RadioAppScaffold(vm = vm, isTelevision = isTelevision)
                 }
             }
         }

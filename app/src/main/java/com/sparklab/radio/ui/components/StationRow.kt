@@ -1,5 +1,6 @@
 package com.sparklab.radio.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,10 +25,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,13 +55,30 @@ fun StationRow(
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val shape = MaterialTheme.shapes.large
+
     Card(
         onClick = onPlay,
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { isFocused = it.hasFocus }
+            .graphicsLayer {
+                val scale = if (isFocused) 1.025f else 1f
+                scaleX = scale
+                scaleY = scale
+            },
+        shape = shape,
+        border = if (isFocused) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isFocused) 10.dp else 0.dp,
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-            else MaterialTheme.colorScheme.surface,
+            containerColor = if (isPlaying || isFocused) {
+                MaterialTheme.colorScheme.primary.copy(alpha = if (isFocused) 0.24f else 0.16f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         ),
     ) {
         Row(

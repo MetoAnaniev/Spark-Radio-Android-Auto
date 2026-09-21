@@ -28,14 +28,14 @@ import com.sparklab.radio.ui.viewmodel.RadioViewModel
 
 /** Favorites — only stations the user hearted, ordered by last played. */
 @Composable
-fun FavoritesScreen(vm: RadioViewModel) {
+fun FavoritesScreen(vm: RadioViewModel, isTelevision: Boolean = false) {
     val favorites by vm.favorites.collectAsState()
     val playing by vm.playbackState.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = if (isTelevision) 48.dp else 16.dp),
     ) {
         Text(
             "Favorites",
@@ -62,7 +62,7 @@ fun FavoritesScreen(vm: RadioViewModel) {
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 24.dp),
+                contentPadding = PaddingValues(bottom = if (isTelevision) 32.dp else 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(favorites, key = { it.id }) { station ->
