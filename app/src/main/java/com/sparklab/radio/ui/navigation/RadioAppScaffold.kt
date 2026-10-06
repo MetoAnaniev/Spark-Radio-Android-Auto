@@ -143,6 +143,7 @@ private fun RadioNavHost(
             StationsScreen(
                 vm = vm,
                 onAdd = { navController.navigate("edit") },
+                onEdit = { stationId -> navController.navigate("edit/$stationId") },
                 isTelevision = isTelevision,
             )
         }

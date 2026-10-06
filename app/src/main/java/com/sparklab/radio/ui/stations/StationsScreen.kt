@@ -13,9 +13,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -41,6 +43,7 @@ import com.sparklab.radio.ui.viewmodel.RadioViewModel
 fun StationsScreen(
     vm: RadioViewModel,
     onAdd: () -> Unit,
+    onEdit: (String) -> Unit,
     isTelevision: Boolean = false,
 ) {
     val all by vm.allStations.collectAsState()
@@ -123,8 +126,20 @@ fun StationsScreen(
                         StationRow(
                             station = station,
                             isPlaying = playing.current?.id == station.id,
+                            nowPlayingTitle = playing.nowPlayingTitle.takeIf {
+                                playing.current?.id == station.id
+                            },
                             onPlay = { vm.play(station, filtered) },
                             onToggleFavorite = { vm.toggleFavorite(station) },
+                            trailing = if (station.isUserEditable) {
+                                {
+                                    IconButton(onClick = { onEdit(station.id) }) {
+                                        Icon(Icons.Filled.Edit, "Edit ${station.name}")
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }

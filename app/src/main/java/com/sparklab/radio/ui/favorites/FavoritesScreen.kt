@@ -69,6 +69,9 @@ fun FavoritesScreen(vm: RadioViewModel, isTelevision: Boolean = false) {
                     StationRow(
                         station = station,
                         isPlaying = playing.current?.id == station.id,
+                        nowPlayingTitle = playing.nowPlayingTitle.takeIf {
+                            playing.current?.id == station.id
+                        },
                         onPlay = { vm.play(station, favorites) },
                         onToggleFavorite = { vm.toggleFavorite(station) },
                     )

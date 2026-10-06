@@ -113,7 +113,7 @@ private fun TvNowPlaying(
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.Center,
             ) {
-                StationDetails(station)
+                StationDetails(station, state.nowPlayingTitle)
                 Spacer(Modifier.height(18.dp))
                 ConnectionStatus(state)
                 Spacer(Modifier.height(28.dp))
@@ -153,7 +153,7 @@ private fun PhoneNowPlaying(
         Spacer(Modifier.height(18.dp))
         StationArtwork(station = station, size = 260.dp, corner = 32)
         Spacer(Modifier.height(24.dp))
-        StationDetails(station)
+        StationDetails(station, state.nowPlayingTitle)
         Spacer(Modifier.height(16.dp))
         ConnectionStatus(state)
         Spacer(Modifier.weight(1f))
@@ -169,7 +169,7 @@ private fun PhoneNowPlaying(
 }
 
 @Composable
-private fun StationDetails(station: Station) {
+private fun StationDetails(station: Station, nowPlayingTitle: String?) {
     Text(
         text = station.name,
         style = MaterialTheme.typography.displaySmall,
@@ -185,7 +185,23 @@ private fun StationDetails(station: Station) {
         color = MaterialTheme.colorScheme.primary,
         textAlign = TextAlign.Center,
     )
-    if (station.description.isNotBlank()) {
+    if (nowPlayingTitle != null) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "NOW PLAYING",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = nowPlayingTitle,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    } else if (station.description.isNotBlank()) {
         Spacer(Modifier.height(8.dp))
         Text(
             text = station.description,

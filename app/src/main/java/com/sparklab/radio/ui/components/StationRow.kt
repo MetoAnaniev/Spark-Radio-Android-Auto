@@ -52,6 +52,7 @@ import com.sparklab.radio.domain.model.Station
 fun StationRow(
     station: Station,
     isPlaying: Boolean,
+    nowPlayingTitle: String? = null,
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
@@ -102,12 +103,16 @@ fun StationRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = buildString {
+                    text = nowPlayingTitle?.let { "Now playing · $it" } ?: buildString {
                         append(station.genre.label)
                         if (station.description.isNotBlank()) append(" · ").append(station.description)
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (nowPlayingTitle != null) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

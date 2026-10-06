@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,7 @@ fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit
 
     var form by remember { mutableStateOf(StationFormState()) }
     var genreExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Prefill when editing an existing user station.
     LaunchedEffect(editing?.id) {
@@ -180,7 +182,7 @@ fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit
 
             if (editing != null) {
                 OutlinedButton(
-                    onClick = { vm.deleteStation(editing.id); onBack() },
+                    onClick = { showDeleteConfirmation = true },
                     shape = MaterialTheme.shapes.large,
                     modifier = Modifier.weight(1f),
                 ) {
@@ -192,5 +194,29 @@ fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+
+    if (showDeleteConfirmation && editing != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete station?") },
+            text = { Text("${editing.name} will be permanently removed from My Stations.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        vm.deleteStation(editing.id)
+                        onBack()
+                    },
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }

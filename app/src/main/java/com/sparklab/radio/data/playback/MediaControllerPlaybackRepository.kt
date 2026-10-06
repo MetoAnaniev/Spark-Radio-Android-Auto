@@ -76,12 +76,19 @@ class MediaControllerPlaybackRepository(
         fun updateState(error: PlaybackException? = mediaController.playerError) {
             val mediaItem = mediaController.currentMediaItem
             val station = mediaItem?.let { knownStations[it.mediaId] ?: it.toStation() }
+            val liveTitle = mediaController.mediaMetadata.title
+                ?.toString()
+                ?.trim()
+                ?.takeIf { title ->
+                    title.isNotBlank() && !title.equals(station?.name, ignoreCase = true)
+                }
             _state.value = PlaybackState(
                 current = station,
                 isPlaying = mediaController.isPlaying,
                 isBuffering = mediaController.playbackState == Player.STATE_BUFFERING,
                 hasError = error != null,
                 errorMessage = error?.message,
+                nowPlayingTitle = liveTitle,
                 positionMs = mediaController.currentPosition.coerceAtLeast(0),
                 durationMs = mediaController.duration.coerceAtLeast(0),
             )
