@@ -7,14 +7,16 @@ import androidx.compose.ui.graphics.Color
  * one confident accent, very high text contrast for in-car readability.
  */
 
-// Brand accent (a friendly "radio wave" cyan-blue)
-val AccentBlue = Color(0xFF4CC2FF)
-val AccentBlueDark = Color(0xFF0088CC)
+// Brand accents from the RadioSpark lightning + radio-wave mark.
+val AccentBlue = Color(0xFF55DDF2)
+val AccentBlueDark = Color(0xFF009DB8)
+val SparkGold = Color(0xFFF8B635)
+val SparkGoldDark = Color(0xFFD88900)
 
 // Dark theme (default — for driving at night)
-val DarkBackground = Color(0xFF0B1220)
-val DarkSurface = Color(0xFF141C2B)
-val DarkSurfaceVariant = Color(0xFF1E2839)
+val DarkBackground = Color(0xFF090F1D)
+val DarkSurface = Color(0xFF121B2E)
+val DarkSurfaceVariant = Color(0xFF1B2940)
 val DarkOnSurface = Color(0xFFE9EEF6)
 val DarkOnSurfaceVariant = Color(0xFF9FB0C6)
 val DarkOutline = Color(0xFF2B3547)

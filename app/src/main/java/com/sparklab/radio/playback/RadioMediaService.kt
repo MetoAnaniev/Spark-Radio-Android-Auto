@@ -68,8 +68,11 @@ class RadioMediaService : MediaLibraryService() {
     private var mediaSession: MediaLibrarySession? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var hasRequestedCarAutoStart = false
 
-    private val repo by lazy { (application as RadioApp).container.stationRepository }
+    private val container by lazy { (application as RadioApp).container }
+    private val repo by lazy { container.stationRepository }
+    private val settingsRepo by lazy { container.settingsRepository }
 
     override fun onCreate() {
         super.onCreate()
@@ -91,13 +94,54 @@ class RadioMediaService : MediaLibraryService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true) // pause on headphone unplug
             .build()
+        player.addListener(object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                mediaItem?.mediaId?.takeIf(String::isNotBlank)?.let { stationId ->
+                    scope.launch { repo.markPlayed(stationId) }
+                }
+            }
+        })
 
         mediaSession = MediaLibrarySession.Builder(this, player, LibraryCallback())
             .setId("radiospark_session")
             .build()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        if (isCarController(controllerInfo.packageName)) requestCarAutoStart()
+        return mediaSession
+    }
+
+    private fun isCarController(packageName: String): Boolean {
+        val normalized = packageName.lowercase()
+        return normalized.contains("gearhead") ||
+            normalized.contains("automotive") ||
+            normalized.contains("android.car") ||
+            normalized.contains("car.media")
+    }
+
+    private fun requestCarAutoStart() {
+        if (hasRequestedCarAutoStart || player.mediaItemCount > 0) return
+        hasRequestedCarAutoStart = true
+        scope.launch {
+            val started = runCatching {
+                if (!settingsRepo.current().autoStartLastStation) return@runCatching false
+                val stations = repo.getAllOnce()
+                if (stations.isEmpty()) return@runCatching false
+                val lastPlayed = stations
+                    .filter { it.lastPlayedAt > 0L }
+                    .maxByOrNull { it.lastPlayedAt }
+                    ?: stations.firstOrNull { it.country.equals("Bulgaria", ignoreCase = true) }
+                    ?: stations.first()
+                val index = stations.indexOfFirst { it.id == lastPlayed.id }.coerceAtLeast(0)
+                player.setMediaItems(stations.map { it.toMediaItem() }, index, 0L)
+                player.prepare()
+                player.play()
+                true
+            }.getOrDefault(false)
+            if (!started) hasRequestedCarAutoStart = false
+        }
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Keep playing when the user swipes the app away only if something is playing;

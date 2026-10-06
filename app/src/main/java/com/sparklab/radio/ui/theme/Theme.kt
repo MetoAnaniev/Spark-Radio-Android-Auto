@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 private val DarkColors = darkColorScheme(
     primary = AccentBlue,
     onPrimary = DarkBackground,
-    secondary = AccentBlueDark,
+    secondary = SparkGold,
     background = DarkBackground,
     onBackground = DarkOnSurface,
     surface = DarkSurface,
@@ -27,7 +27,7 @@ private val DarkColors = darkColorScheme(
 private val LightColors = lightColorScheme(
     primary = AccentBlueDark,
     onPrimary = LightSurface,
-    secondary = AccentBlue,
+    secondary = SparkGoldDark,
     background = LightBackground,
     onBackground = LightOnSurface,
     surface = LightSurface,
