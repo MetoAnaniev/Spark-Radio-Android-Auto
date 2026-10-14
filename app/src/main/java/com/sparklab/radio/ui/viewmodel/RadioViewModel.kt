@@ -66,6 +66,10 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { stationRepo.setFavorite(station, !station.isFavorite) }
     }
 
+    fun reorderFavorites(stationIds: List<String>) {
+        viewModelScope.launch { stationRepo.reorderFavorites(stationIds) }
+    }
+
     fun saveStation(station: Station, onDone: () -> Unit) {
         viewModelScope.launch {
             stationRepo.upsertUserStation(station)

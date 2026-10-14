@@ -91,9 +91,9 @@ class StationRepositoryImpl(
             val ids = favs.map { it.stationId }.toSet()
             all.filter { it.id in ids }
                 .sortedWith(
-                    compareByDescending<Station> { it.sortOrder == 0 }
-                        .thenBy { it.sortOrder }
-                        .thenByDescending { it.lastPlayedAt },
+                    compareBy<Station> {
+                        if (it.sortOrder > 0) it.sortOrder else Int.MAX_VALUE
+                    }.thenByDescending { it.lastPlayedAt },
                 )
         }
 
@@ -167,6 +167,10 @@ class StationRepositoryImpl(
                 sortOrder = existing?.sortOrder ?: 0,
             ),
         )
+    }
+
+    override suspend fun reorderFavorites(stationIds: List<String>) {
+        db.favoriteDao().reorder(stationIds.distinct())
     }
 
     override suspend fun markPlayed(id: String) {

@@ -24,6 +24,7 @@ import com.sparklab.radio.R
 import com.sparklab.radio.RadioApp
 import com.sparklab.radio.data.playback.toMediaItem
 import com.sparklab.radio.data.playback.toStation
+import com.sparklab.radio.data.remote.DefaultStations
 import com.sparklab.radio.domain.model.Genre
 import com.sparklab.radio.domain.model.Station
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +69,7 @@ class RadioMediaService : MediaLibraryService() {
     private var mediaSession: MediaLibrarySession? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private var hasRequestedCarAutoStart = false
+    private var isCarAutoStartLoading = false
 
     private val container by lazy { (application as RadioApp).container }
     private val repo by lazy { container.stationRepository }
@@ -83,7 +84,7 @@ class RadioMediaService : MediaLibraryService() {
                 .followRedirects(true)
                 .followSslRedirects(true)
                 .build(),
-        ).setUserAgent("RadioSpark/1.2 Android Auto")
+        ).setUserAgent("RadioSpark/1.5 Android Auto")
             .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
 
         player = ExoPlayer.Builder(this)
@@ -96,8 +97,11 @@ class RadioMediaService : MediaLibraryService() {
             .build()
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                mediaItem?.mediaId?.takeIf(String::isNotBlank)?.let { stationId ->
-                    scope.launch { repo.markPlayed(stationId) }
+                mediaItem?.takeIf { it.mediaId.isNotBlank() }?.let { item ->
+                    scope.launch {
+                        repo.markPlayed(item.mediaId)
+                        settingsRepo.setLastStation(item.toStation())
+                    }
                 }
             }
         })
@@ -107,39 +111,42 @@ class RadioMediaService : MediaLibraryService() {
             .build()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
-        if (isCarController(controllerInfo.packageName)) requestCarAutoStart()
-        return mediaSession
-    }
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaSession
 
     private fun isCarController(packageName: String): Boolean {
         val normalized = packageName.lowercase()
         return normalized.contains("gearhead") ||
+            normalized.contains("projection") ||
             normalized.contains("automotive") ||
             normalized.contains("android.car") ||
             normalized.contains("car.media")
     }
 
     private fun requestCarAutoStart() {
-        if (hasRequestedCarAutoStart || player.mediaItemCount > 0) return
-        hasRequestedCarAutoStart = true
+        if (isCarAutoStartLoading || player.isPlaying) return
+        isCarAutoStartLoading = true
         scope.launch {
-            val started = runCatching {
-                if (!settingsRepo.current().autoStartLastStation) return@runCatching false
-                val stations = repo.getAllOnce()
-                if (stations.isEmpty()) return@runCatching false
-                val lastPlayed = stations
-                    .filter { it.lastPlayedAt > 0L }
-                    .maxByOrNull { it.lastPlayedAt }
-                    ?: stations.firstOrNull { it.country.equals("Bulgaria", ignoreCase = true) }
-                    ?: stations.first()
-                val index = stations.indexOfFirst { it.id == lastPlayed.id }.coerceAtLeast(0)
-                player.setMediaItems(stations.map { it.toMediaItem() }, index, 0L)
+            runCatching {
+                if (!settingsRepo.current().autoStartLastStation) return@runCatching
+
+                // Reconnecting often reuses the same service and prepared queue.
+                // Resume that queue first instead of treating it as already handled.
+                if (player.mediaItemCount > 0) {
+                    player.prepare()
+                    player.play()
+                    return@runCatching
+                }
+
+                // A compact station snapshot is persisted at play time, so reconnect
+                // can begin immediately without waiting for the remote directory API.
+                val lastStation = settingsRepo.lastStation()
+                    ?: DefaultStations.all.firstOrNull()
+                    ?: return@runCatching
+                player.setMediaItem(lastStation.toMediaItem())
                 player.prepare()
                 player.play()
-                true
-            }.getOrDefault(false)
-            if (!started) hasRequestedCarAutoStart = false
+            }
+            isCarAutoStartLoading = false
         }
     }
 
@@ -164,6 +171,14 @@ class RadioMediaService : MediaLibraryService() {
      *  Browse tree + playback callbacks
      * ════════════════════════════════════════════════════════════════ */
     private inner class LibraryCallback : MediaLibrarySession.Callback {
+
+        override fun onPostConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ) {
+            super.onPostConnect(session, controller)
+            if (isCarController(controller.packageName)) requestCarAutoStart()
+        }
 
         /** Root of the car browse tree. */
         override fun onGetLibraryRoot(

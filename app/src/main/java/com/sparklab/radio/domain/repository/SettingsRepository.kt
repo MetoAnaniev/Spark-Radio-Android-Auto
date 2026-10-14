@@ -1,5 +1,6 @@
 package com.sparklab.radio.domain.repository
 
+import com.sparklab.radio.domain.model.Station
 import com.sparklab.radio.domain.model.UserSettings
 import kotlinx.coroutines.flow.Flow
 
@@ -10,5 +11,7 @@ interface SettingsRepository {
     suspend fun setQuality(quality: com.sparklab.radio.domain.model.StreamQuality)
     suspend fun setAutoStartLastStation(enabled: Boolean)
     suspend fun setWifiOnly(enabled: Boolean)
+    suspend fun setLastStation(station: Station)
+    suspend fun lastStation(): Station?
     suspend fun current(): UserSettings
 }

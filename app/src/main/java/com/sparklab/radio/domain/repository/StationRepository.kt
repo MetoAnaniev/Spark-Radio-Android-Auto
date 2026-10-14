@@ -32,7 +32,7 @@ interface StationRepository {
     /** Stations filtered by [genre]. */
     fun observeByGenre(genre: Genre): Flow<List<Station>>
 
-    /** Stations the user marked as favorite, ordered by last played. */
+    /** Stations the user marked as favorite, ordered manually then by last played. */
     fun observeFavorites(): Flow<List<Station>>
 
     /** Stations the user created (editable). */
@@ -50,6 +50,9 @@ interface StationRepository {
     /** Toggle favorite flag for any station (static, user or remote). */
     suspend fun setFavorite(station: Station, favorite: Boolean)
 
-    /** Record that a station was played (updates ordering on the Favorites screen). */
+    /** Persist the user's manual Favorites playlist order. */
+    suspend fun reorderFavorites(stationIds: List<String>)
+
+    /** Record that a station was played for resume/autostart behavior. */
     suspend fun markPlayed(id: String)
 }
