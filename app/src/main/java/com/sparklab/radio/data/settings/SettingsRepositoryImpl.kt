@@ -9,6 +9,7 @@ import com.sparklab.radio.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -48,31 +49,48 @@ class SettingsRepositoryImpl(context: Context) : SettingsRepository {
     override suspend fun setWifiOnly(enabled: Boolean) = update { it.copy(wifiOnly = enabled) }
 
     override suspend fun setLastStation(station: Station) {
-        val json = JSONObject().apply {
-            put("id", station.id)
-            put("name", station.name)
-            put("streamUrl", station.streamUrl)
-            put("logoUrl", station.logoUrl ?: JSONObject.NULL)
-            put("genre", station.genre.key)
-            put("description", station.description)
-            put("country", station.country ?: JSONObject.NULL)
+        prefs.edit().putString(KEY_LAST_STATION, station.toJson().toString()).apply()
+    }
+
+    override suspend fun setPlaybackQueue(stations: List<Station>) {
+        val array = JSONArray()
+        stations.forEach { array.put(it.toJson()) }
+        prefs.edit().putString(KEY_QUEUE, array.toString()).apply()
+    }
+
+    override suspend fun playbackQueue(): List<Station> = runCatching {
+        val array = JSONArray(prefs.getString(KEY_QUEUE, "[]"))
+        (0 until array.length()).mapNotNull { index ->
+            runCatching { stationFromJson(array.getJSONObject(index)) }.getOrNull()
         }
-        prefs.edit().putString(KEY_LAST_STATION, json.toString()).apply()
+    }.getOrDefault(emptyList())
+
+    private fun Station.toJson(): JSONObject = JSONObject().apply {
+        val station = this@toJson
+        put("id", station.id)
+        put("name", station.name)
+        put("streamUrl", station.streamUrl)
+        put("logoUrl", station.logoUrl ?: JSONObject.NULL)
+        put("genre", station.genre.key)
+        put("description", station.description)
+        put("country", station.country ?: JSONObject.NULL)
     }
 
     override suspend fun lastStation(): Station? = prefs.getString(KEY_LAST_STATION, null)?.let { json ->
-        runCatching {
-            val value = JSONObject(json)
-            Station(
-                id = value.getString("id"),
-                name = value.getString("name"),
-                streamUrl = value.getString("streamUrl"),
-                logoUrl = value.optString("logoUrl").takeIf { it.isNotBlank() && it != "null" },
-                genre = Genre.fromKey(value.optString("genre")),
-                description = value.optString("description"),
-                country = value.optString("country").takeIf { it.isNotBlank() && it != "null" },
-            )
-        }.getOrNull()
+        runCatching { stationFromJson(JSONObject(json)) }.getOrNull()
+    }
+
+    private fun stationFromJson(value: JSONObject): Station {
+        return Station(
+            id = value.getString("id"),
+            name = value.getString("name"),
+            streamUrl = value.getString("streamUrl"),
+            logoUrl = value.optString("logoUrl").takeIf { it.isNotBlank() && it != "null" },
+            genre = Genre.fromKey(value.optString("genre")),
+            description = value.optString("description"),
+            country = value.optString("country").takeIf { it.isNotBlank() && it != "null" },
+        ).takeIf { it.id.isNotBlank() && it.streamUrl.isNotBlank() }
+            ?: error("Invalid saved station")
     }
 
     override suspend fun current(): UserSettings = _state.value
@@ -83,5 +101,6 @@ class SettingsRepositoryImpl(context: Context) : SettingsRepository {
         private const val KEY_AUTOSTART = "autostart"
         private const val KEY_WIFI_ONLY = "wifi_only"
         private const val KEY_LAST_STATION = "last_station"
+        private const val KEY_QUEUE = "playback_queue"
     }
 }

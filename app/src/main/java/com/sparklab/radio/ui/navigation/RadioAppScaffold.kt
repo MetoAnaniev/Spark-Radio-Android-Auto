@@ -143,7 +143,7 @@ private fun RadioNavHost(
             StationsScreen(
                 vm = vm,
                 onAdd = { navController.navigate("edit") },
-                onEdit = { stationId -> navController.navigate("edit/$stationId") },
+                onEdit = { stationId -> navController.navigate("edit/${android.net.Uri.encode(stationId)}") },
                 isTelevision = isTelevision,
             )
         }
@@ -155,7 +155,11 @@ private fun RadioNavHost(
             )
         }
         composable(Destination.FAVORITES.route) {
-            FavoritesScreen(vm = vm, isTelevision = isTelevision)
+            FavoritesScreen(
+                vm = vm,
+                isTelevision = isTelevision,
+                onEdit = { stationId -> navController.navigate("edit/${android.net.Uri.encode(stationId)}") },
+            )
         }
         composable(Destination.SETTINGS.route) { SettingsScreen(vm) }
 
@@ -163,6 +167,7 @@ private fun RadioNavHost(
             GenreStationsScreen(
                 vm = vm,
                 genreKey = entry.arguments?.getString("key"),
+                onEdit = { stationId -> navController.navigate("edit/${android.net.Uri.encode(stationId)}") },
                 onBack = { navController.popBackStack() },
                 isTelevision = isTelevision,
             )

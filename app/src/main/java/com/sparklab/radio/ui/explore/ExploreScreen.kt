@@ -152,6 +152,7 @@ fun GenreStationsScreen(
     vm: RadioViewModel,
     genreKey: String?,
     onBack: () -> Unit,
+    onEdit: (String) -> Unit,
     isTelevision: Boolean = false,
 ) {
     val genre = Genre.fromKey(genreKey)
@@ -209,6 +210,7 @@ fun GenreStationsScreen(
                     },
                     onPlay = { vm.play(station, stations) },
                     onToggleFavorite = { vm.toggleFavorite(station) },
+                    onEdit = { onEdit(station.id) },
                 )
             }
         }

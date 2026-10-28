@@ -13,11 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -131,15 +129,7 @@ fun StationsScreen(
                             },
                             onPlay = { vm.play(station, filtered) },
                             onToggleFavorite = { vm.toggleFavorite(station) },
-                            trailing = if (station.isUserEditable) {
-                                {
-                                    IconButton(onClick = { onEdit(station.id) }) {
-                                        Icon(Icons.Filled.Edit, "Edit ${station.name}")
-                                    }
-                                }
-                            } else {
-                                null
-                            },
+                            onEdit = { onEdit(station.id) },
                         )
                     }
                 }

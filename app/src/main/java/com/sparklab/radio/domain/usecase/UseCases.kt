@@ -41,6 +41,14 @@ object ValidateStreamUrl {
     }
 }
 
+/** Retain the chosen queue/order and always include the latest selected stream snapshot. */
+fun stationSwitchQueue(selected: Station, saved: List<Station>, fallback: List<Station>): List<Station> {
+    val base = if (saved.any { it.id == selected.id }) saved else fallback
+    return (base.map { if (it.id == selected.id) selected else it } + selected)
+        .filter { it.id.isNotBlank() && it.streamUrl.isNotBlank() }
+        .distinctBy { it.id }
+}
+
 /** Toggles favorite on a station. */
 class ToggleFavorite(private val repo: StationRepository) {
     suspend operator fun invoke(station: Station) =

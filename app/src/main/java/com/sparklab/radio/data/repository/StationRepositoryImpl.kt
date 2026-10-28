@@ -17,6 +17,18 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
+/** Keep every personal entry/favorite visible while collapsing duplicate directory names. */
+internal fun distinctStationEntries(stations: List<Station>, favoriteIds: Set<String> = emptySet()): List<Station> {
+    val seenNames = mutableSetOf<String>()
+    return stations.distinctBy { it.id }
+        .sortedBy { if (it.isUserEditable) 0 else if (it.id in favoriteIds) 1 else 2 }
+        .filter { station ->
+            val key = "${station.country.orEmpty().trim().lowercase(java.util.Locale.ROOT)}|${station.name.trim().lowercase(java.util.Locale.ROOT)}"
+            val firstName = seenNames.add(key)
+            station.isUserEditable || station.id in favoriteIds || firstName
+        }
+}
+
 /* ============================================================================
  * SOURCE 1 — Static catalog (defined in code, see DefaultStations)
  * ========================================================================== */
@@ -100,7 +112,9 @@ class StationRepositoryImpl(
     override fun observeUserStations(): Flow<List<Station>> = userSource.observeStations()
 
     override suspend fun getStation(id: String): Station? =
-        getAllOnce().firstOrNull { it.id == id }
+        userSource.getStations().firstOrNull { it.id == id }
+            ?: staticSource.getStations().firstOrNull { it.id == id }
+            ?: getAllOnce().firstOrNull { it.id == id }
 
     override suspend fun getAllOnce(): List<Station> {
         val static = staticSource.getStations()
@@ -112,8 +126,7 @@ class StationRepositoryImpl(
 
     private fun merge(stations: List<Station>, favorites: List<FavoriteEntity>): List<Station> {
         val byId = favorites.associateBy { it.stationId }
-        return stations
-            .distinctBy { "${it.country.orEmpty().trim().lowercase()}|${it.name.trim().lowercase()}" }
+        return distinctStationEntries(stations, favorites.filter { it.isFavorite }.map { it.stationId }.toSet())
             .map { station ->
                 val favorite = byId[station.id]
                 station.copy(

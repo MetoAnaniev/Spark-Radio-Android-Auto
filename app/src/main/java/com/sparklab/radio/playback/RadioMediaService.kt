@@ -1,8 +1,12 @@
 package com.sparklab.radio.playback
 
+import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
+import androidx.media3.common.Timeline
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -20,6 +24,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.SettableFuture
 import com.google.common.util.concurrent.ListenableFuture
+import com.sparklab.radio.MainActivity
 import com.sparklab.radio.R
 import com.sparklab.radio.RadioApp
 import com.sparklab.radio.data.playback.toMediaItem
@@ -27,6 +32,8 @@ import com.sparklab.radio.data.playback.toStation
 import com.sparklab.radio.data.remote.DefaultStations
 import com.sparklab.radio.domain.model.Genre
 import com.sparklab.radio.domain.model.Station
+import com.sparklab.radio.domain.usecase.stationSwitchQueue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -70,6 +77,7 @@ class RadioMediaService : MediaLibraryService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var isCarAutoStartLoading = false
+    private val browseQueues = mutableMapOf<String, List<MediaItem>>()
 
     private val container by lazy { (application as RadioApp).container }
     private val repo by lazy { container.stationRepository }
@@ -84,7 +92,7 @@ class RadioMediaService : MediaLibraryService() {
                 .followRedirects(true)
                 .followSslRedirects(true)
                 .build(),
-        ).setUserAgent("RadioSpark/1.5 Android Auto")
+        ).setUserAgent("RadioSpark/1.6 Android Auto")
             .setDefaultRequestProperties(mapOf("Icy-MetaData" to "1"))
 
         player = ExoPlayer.Builder(this)
@@ -95,18 +103,35 @@ class RadioMediaService : MediaLibraryService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true) // pause on headphone unplug
             .build()
+        // Keep station switching available at both ends of the queue.
+        player.repeatMode = Player.REPEAT_MODE_ALL
         player.addListener(object : Player.Listener {
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                val queue = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toStation() }
+                if (queue.isNotEmpty()) scope.launch { settingsRepo.setPlaybackQueue(queue) }
+            }
+
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 mediaItem?.takeIf { it.mediaId.isNotBlank() }?.let { item ->
                     scope.launch {
-                        repo.markPlayed(item.mediaId)
+                        // Save first: Room/catalog work must not delay the resume snapshot.
                         settingsRepo.setLastStation(item.toStation())
+                        repo.markPlayed(item.mediaId)
                     }
                 }
             }
         })
 
-        mediaSession = MediaLibrarySession.Builder(this, player, LibraryCallback())
+        val stationPlayer = object : ForwardingPlayer(player) {
+            // Generic Previous can seek to the live edge instead of changing station.
+            override fun seekToPrevious() = player.seekToPreviousMediaItem()
+            override fun seekToNext() = player.seekToNextMediaItem()
+        }
+        mediaSession = MediaLibrarySession.Builder(this, stationPlayer, LibraryCallback())
+            .setSessionActivity(PendingIntent.getActivity(
+                this, 0, Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ))
             .setId("radiospark_session")
             .build()
     }
@@ -126,27 +151,28 @@ class RadioMediaService : MediaLibraryService() {
         if (isCarAutoStartLoading || player.isPlaying) return
         isCarAutoStartLoading = true
         scope.launch {
-            runCatching {
-                if (!settingsRepo.current().autoStartLastStation) return@runCatching
-
-                // Reconnecting often reuses the same service and prepared queue.
-                // Resume that queue first instead of treating it as already handled.
+            try {
+                if (!settingsRepo.current().autoStartLastStation) return@launch
+                val resume = buildResumption()
+                // A controller may have selected a station while restoration was loading.
+                if (player.playWhenReady &&
+                    (player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_READY)
+                ) return@launch
+                if (player.mediaItemCount == 0 && resume.mediaItems.isNotEmpty()) {
+                    player.setMediaItems(resume.mediaItems, resume.startIndex, C.TIME_UNSET)
+                }
                 if (player.mediaItemCount > 0) {
+                    player.seekToDefaultPosition()
                     player.prepare()
                     player.play()
-                    return@runCatching
                 }
-
-                // A compact station snapshot is persisted at play time, so reconnect
-                // can begin immediately without waiting for the remote directory API.
-                val lastStation = settingsRepo.lastStation()
-                    ?: DefaultStations.all.firstOrNull()
-                    ?: return@runCatching
-                player.setMediaItem(lastStation.toMediaItem())
-                player.prepare()
-                player.play()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("RadioMediaService", "Car playback resumption failed", error)
+            } finally {
+                isCarAutoStartLoading = false
             }
-            isCarAutoStartLoading = false
         }
     }
 
@@ -186,8 +212,13 @@ class RadioMediaService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: MediaLibraryService.LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> {
+            // Legacy MediaBrowser clients (including Auto) may never call onPostConnect.
+            // Recent-media discovery must remain silent; only a car connection autoplays.
+            if (params?.isRecent != true && isCarController(browser.packageName)) {
+                requestCarAutoStart()
+            }
             val root = MediaItem.Builder()
-                .setMediaId(ID_ROOT)
+                .setMediaId(if (params?.isRecent == true) ID_RECENT else ID_ROOT)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setTitle(getString(R.string.app_name))
@@ -211,6 +242,7 @@ class RadioMediaService : MediaLibraryService() {
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
             return scope.guavaFuture {
                 val children: List<MediaItem> = when {
+                    parentId == ID_RECENT -> listOfNotNull(settingsRepo.lastStation()?.toMediaItem())
                     parentId == ID_ROOT -> rootCategories()
                     parentId == ID_FAVORITES -> repo.getAllOnce().filter { it.isFavorite }.map { it.toBrowsableMediaItem() }
                     parentId == ID_ALL -> repo.getAllOnce().map { it.toBrowsableMediaItem() }
@@ -229,7 +261,14 @@ class RadioMediaService : MediaLibraryService() {
                     }
                     else -> emptyList()
                 }
-                LibraryResult.ofItemList(ImmutableList.copyOf(children), params)
+                if (parentId != ID_RECENT && children.any { it.mediaMetadata.isPlayable == true }) {
+                    children.forEach { browseQueues[it.mediaId] = children }
+                }
+                val start = (page.toLong().coerceAtLeast(0) * pageSize.coerceAtLeast(0))
+                    .coerceAtMost(children.size.toLong()).toInt()
+                val end = (start.toLong() + pageSize.coerceAtLeast(0))
+                    .coerceAtMost(children.size.toLong()).toInt()
+                LibraryResult.ofItemList(ImmutableList.copyOf(children.subList(start, end)), params)
             }
         }
 
@@ -243,6 +282,18 @@ class RadioMediaService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             return scope.guavaFuture { buildResumption() }
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> = scope.guavaFuture {
+            val item = settingsRepo.lastStation()?.takeIf { it.id == mediaId }?.toMediaItem()
+                ?: browseQueues[mediaId]?.firstOrNull { it.mediaId == mediaId }
+                ?: repo.getStation(mediaId)?.toMediaItem()
+            if (item != null) LibraryResult.ofItem(item, null)
+            else LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
         }
 
         override fun onAddMediaItems(
@@ -263,17 +314,26 @@ class RadioMediaService : MediaLibraryService() {
             // Car hosts commonly submit browse results containing only mediaId.
             // Resolve every item to a stream URI before Media3 prepares playback.
             val playableItems = resolvePlayableItems(mediaItems)
+            val selectedId = mediaItems.getOrNull(startIndex.takeIf { it >= 0 } ?: 0)?.mediaId
+            val queue = if (playableItems.size == 1) {
+                val selected = playableItems.first()
+                browseQueues[selected.mediaId]
+                    ?: stationSwitchQueue(selected.toStation(), settingsRepo.playbackQueue(), DefaultStations.all)
+                        .map { it.toMediaItem() }
+            } else playableItems
             MediaSession.MediaItemsWithStartPosition(
-                playableItems,
-                startIndex.coerceIn(0, (playableItems.size - 1).coerceAtLeast(0)),
-                startPositionMs.coerceAtLeast(0L),
+                queue,
+                queue.indexOfFirst { it.mediaId == selectedId }.coerceAtLeast(0),
+                C.TIME_UNSET,
             )
         }
 
         private suspend fun resolvePlayableItems(mediaItems: List<MediaItem>): List<MediaItem> =
             mediaItems.mapNotNull { item ->
-                repo.getStation(item.mediaId)?.toMediaItem()
-                    ?: item.takeIf { it.localConfiguration?.uri != null }
+                item.takeIf { it.localConfiguration?.uri != null }
+                    ?: browseQueues[item.mediaId]?.firstOrNull { it.mediaId == item.mediaId }
+                    ?: settingsRepo.lastStation()?.takeIf { it.id == item.mediaId }?.toMediaItem()
+                    ?: repo.getStation(item.mediaId)?.toMediaItem()
             }
 
         override fun onCustomCommand(
@@ -334,12 +394,22 @@ class RadioMediaService : MediaLibraryService() {
     /** A station node in the car. Browsable=false, playable=true. */
     private fun Station.toBrowsableMediaItem(): MediaItem = toMediaItem()
 
-    private fun buildResumption(): MediaSession.MediaItemsWithStartPosition {
-        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
-        return MediaSession.MediaItemsWithStartPosition(items, player.currentMediaItemIndex, player.currentPosition)
+    private suspend fun buildResumption(): MediaSession.MediaItemsWithStartPosition {
+        val current = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
+        if (current.isNotEmpty()) {
+            return MediaSession.MediaItemsWithStartPosition(current, player.currentMediaItemIndex, C.TIME_UNSET)
+        }
+        // Restore locally, even after process death, with no directory/network dependency.
+        val saved = settingsRepo.playbackQueue()
+        val last = settingsRepo.lastStation() ?: saved.firstOrNull() ?: DefaultStations.all.first()
+        val queue = stationSwitchQueue(last, saved, DefaultStations.all).map { it.toMediaItem() }
+        return MediaSession.MediaItemsWithStartPosition(
+            queue, queue.indexOfFirst { it.mediaId == last.id }.coerceAtLeast(0), C.TIME_UNSET,
+        )
     }
     companion object {
         const val ID_ROOT = "root"
+        const val ID_RECENT = "recent"
         const val ID_FAVORITES = "favorites"
         const val ID_ALL = "all_stations"
         const val ID_MY = "my_stations"

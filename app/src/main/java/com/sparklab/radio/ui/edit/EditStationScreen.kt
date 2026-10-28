@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -30,7 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.sparklab.radio.domain.model.Genre
+import com.sparklab.radio.domain.model.Station
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import com.sparklab.radio.ui.viewmodel.RadioViewModel
 import com.sparklab.radio.ui.viewmodel.StationFormFactory
 import com.sparklab.radio.ui.viewmodel.StationFormState
@@ -51,16 +54,50 @@ import com.sparklab.radio.ui.viewmodel.StationFormState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit) {
-    val userStations by vm.userStations.collectAsState()
-    val editing = stationId?.let { id -> userStations.firstOrNull { it.id == id } }
-
-    var form by remember { mutableStateOf(StationFormState()) }
+    var editing by remember(stationId) { mutableStateOf<Station?>(null) }
+    var form by remember(stationId) { mutableStateOf(StationFormState()) }
+    var loading by remember(stationId) { mutableStateOf(stationId != null) }
+    var loadError by remember(stationId) { mutableStateOf<String?>(null) }
+    var retry by remember(stationId) { mutableStateOf(0) }
     var genreExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    // Prefill when editing an existing user station.
-    LaunchedEffect(editing?.id) {
-        if (editing != null) form = StationFormState.from(editing)
+    // Do not show an empty Add form while the existing station is loading.
+    LaunchedEffect(stationId, retry) {
+        if (stationId != null) {
+            loading = true
+            loadError = null
+            try {
+                val station = vm.stationRepo.observeUserStations().first().firstOrNull { it.id == stationId }
+                if (station == null) loadError = "This manually added station could not be found."
+                else {
+                    editing = station
+                    form = StationFormState.from(station)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                loadError = "Could not load this station. Please try again."
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    if (loading || loadError != null) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (loading) CircularProgressIndicator()
+            else {
+                Text(loadError.orEmpty())
+                Button(onClick = { retry++ }) { Text("Retry") }
+            }
+            OutlinedButton(onClick = onBack) { Text("Back") }
+        }
+        return
     }
 
     Column(
@@ -74,7 +111,7 @@ fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
             }
             Text(
-                if (editing == null) "Add station" else "Edit station",
+                if (stationId == null) "Add station" else "Edit station",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -196,16 +233,17 @@ fun EditStationScreen(vm: RadioViewModel, stationId: String?, onBack: () -> Unit
         Spacer(Modifier.height(32.dp))
     }
 
-    if (showDeleteConfirmation && editing != null) {
+    val stationToDelete = editing
+    if (showDeleteConfirmation && stationToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Delete station?") },
-            text = { Text("${editing.name} will be permanently removed from My Stations.") },
+            text = { Text("${stationToDelete.name} will be permanently removed from My Stations.") },
             confirmButton = {
                 Button(
                     onClick = {
                         showDeleteConfirmation = false
-                        vm.deleteStation(editing.id)
+                        vm.deleteStation(stationToDelete.id)
                         onBack()
                     },
                 ) {

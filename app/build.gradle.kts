@@ -15,8 +15,8 @@ android {
         applicationId = "com.sparklab.radio"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.5.0"
+        versionCode = 8
+        versionName = "1.6.1"
         vectorDrawables { useSupportLibrary = true }
     }
 

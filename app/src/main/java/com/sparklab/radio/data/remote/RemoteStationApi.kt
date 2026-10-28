@@ -2,7 +2,13 @@ package com.sparklab.radio.data.remote
 
 import com.sparklab.radio.domain.model.Genre
 import com.sparklab.radio.domain.model.Station
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -43,6 +49,8 @@ interface RemoteStationApi {
             .build(),
     ) : RemoteStationApi {
 
+        private val catalogMutex = Mutex()
+
         @Volatile
         private var cachedStations: List<Station> = emptyList()
 
@@ -50,26 +58,24 @@ interface RemoteStationApi {
         private var cacheUpdatedAt: Long = 0L
 
         override suspend fun getStations(genre: Genre?): List<Station> = withContext(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            val cached = cachedStations
-            val stations = if (cached.isNotEmpty() && now - cacheUpdatedAt < CACHE_DURATION_MS) {
-                cached
-            } else {
-                var lastError: Throwable? = null
-                var loaded: List<Station>? = null
-                for (mirror in mirrors.shuffled()) {
-                    try {
-                        loaded = fetchCatalog(mirror)
-                        break
-                    } catch (error: Throwable) {
-                        lastError = error
+            val stations = catalogMutex.withLock {
+                val now = System.currentTimeMillis()
+                val cached = cachedStations
+                if (cached.isNotEmpty() && now - cacheUpdatedAt < CACHE_DURATION_MS) {
+                    cached
+                } else {
+                    val loaded = fetchCatalog()
+                    if (loaded.isNotEmpty()) {
+                        cachedStations = loaded
+                        cacheUpdatedAt = System.currentTimeMillis()
+                        loaded
+                    } else if (cached.isNotEmpty()) {
+                        // A temporary directory outage should not clear the station list.
+                        cached
+                    } else {
+                        error("No Radio Browser API mirror is available")
                     }
                 }
-                val result = loaded ?: throw lastError
-                    ?: IllegalStateException("No Radio Browser API mirror is available")
-                cachedStations = result
-                cacheUpdatedAt = now
-                result
             }
             if (genre == null) stations else stations.filter { it.genre == genre }
         }
@@ -77,11 +83,25 @@ interface RemoteStationApi {
         override suspend fun createStation(station: Station): Station =
             throw UnsupportedOperationException("Radio Browser is a read-only public directory")
 
-        private fun fetchCatalog(mirror: String): List<Station> {
-            val bulgarian = requestStations(mirror, countryCode = "BG", limit = BULGARIAN_LIMIT)
-            val international = requestStations(mirror, countryCode = null, limit = INTERNATIONAL_LIMIT)
-
-            return (bulgarian + international)
+        private suspend fun fetchCatalog(): List<Station> = coroutineScope {
+            // Load independently: a failed country request must not discard the others.
+            listOf("BG" to BULGARIAN_LIMIT, "GR" to GREEK_LIMIT, null to INTERNATIONAL_LIMIT)
+                .map { (country, limit) ->
+                    async(Dispatchers.IO) {
+                        var stations = emptyList<Station>()
+                        for (mirror in mirrors.shuffled()) {
+                            try {
+                                stations = requestStations(mirror, country, limit)
+                                if (stations.isNotEmpty()) break
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                // Try another mirror for this selection only.
+                            }
+                        }
+                        stations
+                    }
+                }.awaitAll().flatten()
                 .distinctBy { it.id }
                 .filter { it.streamUrl.startsWith("http://") || it.streamUrl.startsWith("https://") }
         }
@@ -179,9 +199,10 @@ interface RemoteStationApi {
         }
 
         private companion object {
-            const val USER_AGENT = "RadioSpark/1.1 (Android; contact: SparkLab Academy)"
-            const val BULGARIAN_LIMIT = 100
-            const val INTERNATIONAL_LIMIT = 200
+            const val USER_AGENT = "RadioSpark/1.6 (Android; contact: SparkLab Academy)"
+            const val BULGARIAN_LIMIT = 500
+            const val GREEK_LIMIT = 150
+            const val INTERNATIONAL_LIMIT = 1000
             const val CACHE_DURATION_MS = 15 * 60 * 1000L
         }
     }

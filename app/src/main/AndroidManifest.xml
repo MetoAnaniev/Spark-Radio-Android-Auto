@@ -59,6 +59,15 @@
             </intent-filter>
         </service>
 
+        <!-- Let the system restart the media service for Play/resume after process death. -->
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Declares this app as an Android Auto media app -->
         <meta-data
             android:name="com.google.android.gms.car.application"

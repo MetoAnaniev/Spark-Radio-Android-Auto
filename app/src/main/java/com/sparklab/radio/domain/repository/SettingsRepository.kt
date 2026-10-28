@@ -13,5 +13,7 @@ interface SettingsRepository {
     suspend fun setWifiOnly(enabled: Boolean)
     suspend fun setLastStation(station: Station)
     suspend fun lastStation(): Station?
+    suspend fun setPlaybackQueue(stations: List<Station>)
+    suspend fun playbackQueue(): List<Station>
     suspend fun current(): UserSettings
 }

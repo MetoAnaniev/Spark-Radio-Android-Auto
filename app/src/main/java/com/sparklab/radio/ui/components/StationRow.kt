@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
@@ -26,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +58,7 @@ fun StationRow(
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
-    trailing: (@Composable () -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val shape = MaterialTheme.shapes.large
@@ -137,7 +139,24 @@ fun StationRow(
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            trailing?.invoke()
+        }
+        if (station.isUserEditable && onEdit != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Manually added",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit ${station.name}")
+                    Spacer(Modifier.width(6.dp))
+                    Text("Edit station")
+                }
+            }
         }
     }
 }

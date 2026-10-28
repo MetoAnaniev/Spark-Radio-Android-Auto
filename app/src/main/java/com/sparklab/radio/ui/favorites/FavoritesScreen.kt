@@ -44,7 +44,7 @@ import com.sparklab.radio.ui.viewmodel.RadioViewModel
 
 /** Favorites playlist with a persistent, remote-friendly rearrangement mode. */
 @Composable
-fun FavoritesScreen(vm: RadioViewModel, isTelevision: Boolean = false) {
+fun FavoritesScreen(vm: RadioViewModel, isTelevision: Boolean = false, onEdit: (String) -> Unit) {
     val favorites by vm.favorites.collectAsState()
     val playing by vm.playbackState.collectAsState()
     var isReordering by remember { mutableStateOf(false) }
@@ -153,6 +153,7 @@ fun FavoritesScreen(vm: RadioViewModel, isTelevision: Boolean = false) {
                         },
                         onPlay = { vm.play(station, favorites) },
                         onToggleFavorite = { vm.toggleFavorite(station) },
+                        onEdit = { onEdit(station.id) },
                     )
                 }
             }
