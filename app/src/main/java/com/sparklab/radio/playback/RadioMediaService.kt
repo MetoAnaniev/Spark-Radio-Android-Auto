@@ -128,6 +128,7 @@ class RadioMediaService : MediaLibraryService() {
             override fun seekToNext() = player.seekToNextMediaItem()
         }
         mediaSession = MediaLibrarySession.Builder(this, stationPlayer, LibraryCallback())
+            .setBitmapLoader(androidx.media3.session.CacheBitmapLoader(StationArtworkLoader(this, scope)))
             .setSessionActivity(PendingIntent.getActivity(
                 this, 0, Intent(this, MainActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

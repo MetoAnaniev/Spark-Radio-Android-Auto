@@ -15,6 +15,7 @@ import com.sparklab.radio.domain.model.PlaybackState
 import com.sparklab.radio.domain.model.Station
 import com.sparklab.radio.domain.repository.PlaybackRepository
 import com.sparklab.radio.playback.RadioMediaService
+import com.sparklab.radio.playback.SparkRadioArtwork
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -168,12 +169,13 @@ class MediaControllerPlaybackRepository(
 
 /** Convert a station into a fully playable Media3 item with car metadata. */
 fun Station.toMediaItem(): MediaItem {
+    val artworkUrl = logoUrl?.trim()?.takeIf { it.isNotEmpty() && !SparkRadioArtwork.isFallback(it) }
     val metadata = MediaMetadata.Builder()
         .setTitle(name)
         .setSubtitle(description)
         .setArtist(genre.label)
         .setAlbumTitle(country ?: "RadioSpark")
-        .setArtworkUri(logoUrl?.let(android.net.Uri::parse))
+        .setArtworkUri(android.net.Uri.parse(artworkUrl ?: SparkRadioArtwork.uri))
         .setIsBrowsable(false)
         .setIsPlayable(true)
         .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
@@ -193,7 +195,8 @@ fun MediaItem.toStation(): Station {
         id = mediaId,
         name = metadata.title?.toString().orEmpty(),
         streamUrl = localConfiguration?.uri?.toString().orEmpty(),
-        logoUrl = metadata.artworkUri?.toString(),
+        // Branding is presentation, not the station's own editable logo URL.
+        logoUrl = metadata.artworkUri?.toString()?.takeUnless(SparkRadioArtwork::isFallback),
         genre = Genre.entries.firstOrNull { it.label.equals(genreLabel, ignoreCase = true) } ?: Genre.OTHER,
         description = metadata.subtitle?.toString().orEmpty(),
         country = metadata.albumTitle?.toString(),

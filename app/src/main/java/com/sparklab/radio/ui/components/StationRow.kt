@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,10 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.sparklab.radio.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -161,43 +161,23 @@ fun StationRow(
     }
 }
 
-/** Square artwork with a graceful gradient fallback when there is no logo. */
+/** Branded artwork for missing, loading, or broken station logos. */
 @Composable
 fun StationArtwork(station: Station, size: androidx.compose.ui.unit.Dp, corner: Int = 18) {
     val shape = RoundedCornerShape(corner.dp)
-    if (!station.logoUrl.isNullOrBlank()) {
-        AsyncImage(
-            model = station.logoUrl,
-            contentDescription = station.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary,
-                        ),
-                    ),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Radio,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(size * 0.5f),
-            )
-        }
-    }
+    val branded = painterResource(R.drawable.station_artwork)
+    AsyncImage(
+        model = station.logoUrl?.takeIf { it.isNotBlank() },
+        placeholder = branded,
+        fallback = branded,
+        error = branded,
+        contentDescription = "${station.name} artwork",
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(Color.White),
+    )
 }
 
 /** Small colored pill for status text ("Playing", "Connecting…"). */
