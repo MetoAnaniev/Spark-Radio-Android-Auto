@@ -19,5 +19,9 @@ keystore.properties
 # Local SDK path (machine specific)
 local.properties
 
+# Generated Xcode project (recreate with `xcodegen generate`)
+*.xcodeproj/
+*.xcworkspace/
+
 # Logs
 *.log

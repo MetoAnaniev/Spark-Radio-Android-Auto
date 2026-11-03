@@ -1,0 +1,3 @@
+RadioSpark plays public internet radio streams listed in the open Radio Browser directory (radio-browser.info) plus a small built-in list of Bulgarian stations. No login is required.
+NSAllowsArbitraryLoads is enabled because many broadcasters only publish plain-HTTP Icecast/Shoutcast streams and station logos; the app sends no user data over these connections.
+Background audio is used only for continuous radio playback.
