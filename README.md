@@ -178,3 +178,9 @@ app/src/main/res/xml/automotive_app_desc.xml   ← declares the media app for An
 
 ## 📄 License
 Provided as a starting point for SparkLab Academy projects — extend freely.
+
+---
+
+## 🍎 iPhone, iPad & Mac
+
+A native SwiftUI port lives in [`apple/`](apple/) (AVPlayer, lock-screen / Control Center / media-key controls, Radio Browser directory, favorites, custom stations). Generate the Xcode project with XcodeGen — see [PUBLISHING.md](PUBLISHING.md), which also covers the Google Play and App Store release steps.
