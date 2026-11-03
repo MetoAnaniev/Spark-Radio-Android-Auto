@@ -24,6 +24,8 @@ struct RadioSparkApp: App {
                 Button("Previous Station") { player.previous() }.keyboardShortcut(.leftArrow, modifiers: .command)
             }
         }
+        #endif
+        #if os(macOS)
         Settings { SettingsView().environmentObject(store) }
         #endif
     }
